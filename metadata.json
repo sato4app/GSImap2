@@ -1,0 +1,5 @@
+{
+  "name": "Geospatial Image Overlay Tool",
+  "description": "An interactive web application to upload, overlay, and transform images on a geographic map. Built with React and Leaflet, this tool provides intuitive controls for adjusting image scale and opacity.",
+  "requestFramePermissions": []
+}
