@@ -17,6 +17,14 @@
     <!-- Leaflet.DistortableImage Plugin CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-distortableimage@0.21.6/dist/leaflet.distortableimage.css" />
 
+    <!-- Leaflet.js Core Library (loaded here to be available for the app) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+        
+    <!-- Leaflet.DistortableImage Plugin (loaded after Leaflet core) -->
+    <script src="https://unpkg.com/leaflet-distortableimage@0.21.6/dist/leaflet.distortableimage.js"></script>
+
     <!-- Favicon to prevent 404 errors -->
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 <script type="importmap">
@@ -29,18 +37,9 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body class="antialiased">
     <div id="root"></div>
-
-    <!-- Leaflet.js Core Library -->
-    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin=""></script>
-        
-    <!-- Leaflet.DistortableImage Plugin -->
-    <script defer src="https://unpkg.com/leaflet-distortableimage@0.21.6/dist/leaflet.distortableimage.js"></script>
 
     <!-- React App Entry Point -->
     <script type="module" src="/index.tsx"></script>
