@@ -5,13 +5,6 @@ import type { ChangeEvent } from 'react';
 
 // Inform TypeScript that `L` is a global variable provided by the Leaflet scripts.
 declare const L: any;
-// Also type window to avoid errors on window.L
-declare global {
-    interface Window {
-        L: any;
-    }
-}
-
 
 // --- SVG Icon Components ---
 
@@ -129,12 +122,6 @@ const ImageOverlayController: React.FC<ImageOverlayControllerProps> = ({ imageUr
         }
 
         if (!imageUrl) return;
-        
-        // This check is now mostly for safety; the parent component prevents this from running prematurely.
-        if (typeof L.distortableImageOverlay !== 'function') {
-            console.error("Attempted to use L.distortableImageOverlay before it was ready.");
-            return;
-        }
 
         const tempImg = new Image();
         tempImg.onload = () => {
@@ -181,36 +168,78 @@ const ImageOverlayController: React.FC<ImageOverlayControllerProps> = ({ imageUr
     return null; // This component manages layers, it does not render DOM elements.
 };
 
+// --- Loading and Error Screens ---
+
+const LoadingScreen = () => (
+    <div className="h-screen w-screen flex flex-col items-center justify-center bg-gray-100 text-gray-700">
+        <svg className="animate-spin h-8 w-8 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p className="text-xl font-semibold">Loading Map Resources...</p>
+        <p className="text-sm">Please wait a moment.</p>
+    </div>
+);
+
+const ErrorScreen = ({ message }: { message: string }) => (
+    <div className="h-screen w-screen flex flex-col items-center justify-center bg-red-50 text-red-700 p-4">
+        <h2 className="text-2xl font-bold mb-2">Application Error</h2>
+        <p className="text-center">{message}</p>
+        <p className="text-center mt-4 text-sm">Please try refreshing the page. If the problem persists, contact support.</p>
+    </div>
+);
+
 
 // --- Main Application Component ---
 
 function App() {
     const [isPluginReady, setIsPluginReady] = useState(false);
+    const [pluginError, setPluginError] = useState<string | null>(null);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [scale, setScale] = useState<number>(0.3);
     const [opacity, setOpacity] = useState<number>(50);
     
     const minohFallPosition: [number, number] = [34.853667, 135.472041];
 
-    // Effect to check for the Leaflet plugin's availability.
     useEffect(() => {
-        const interval = setInterval(() => {
-            // Check if the global L object and the plugin are available
-            if (window.L && window.L.distortableImageOverlay) {
+        // This effect runs only once on component mount.
+        let interval: ReturnType<typeof setInterval>;
+        let timeout: ReturnType<typeof setTimeout>;
+
+        // Start checking for the plugin.
+        interval = setInterval(() => {
+            // If plugin is found, update state and clear all timers.
+            if (typeof L !== 'undefined' && L.distortableImageOverlay) {
                 setIsPluginReady(true);
                 clearInterval(interval);
+                clearTimeout(timeout);
             }
-        }, 100); // Check every 100ms
+        }, 100);
 
-        return () => clearInterval(interval); // Cleanup on component unmount
-    }, []);
+        // Set a timeout for the check.
+        timeout = setTimeout(() => {
+            clearInterval(interval);
+            // After 5 seconds, if the plugin is still not available (by checking the global L object directly),
+            // set an error. This avoids the "stale closure" problem.
+            if (typeof L === 'undefined' || !L.distortableImageOverlay) {
+                setPluginError("Failed to load a required map plugin (DistortableImageOverlay). The application cannot start.");
+            }
+        }, 5000); // 5-second timeout
+
+        // The cleanup function for this effect.
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
+    }, []); // Empty dependency array ensures this effect runs only ONCE.
+
+
+    if (pluginError) {
+        return <ErrorScreen message={pluginError} />;
+    }
 
     if (!isPluginReady) {
-        return (
-            <div className="flex items-center justify-center h-screen w-screen bg-gray-100 text-gray-700">
-                <div className="text-lg font-medium">Loading Map Resources...</div>
-            </div>
-        );
+        return <LoadingScreen />;
     }
 
     return (
