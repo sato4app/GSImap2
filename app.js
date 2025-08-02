@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 初期マーカーの設置 ---
     centerMarker = L.marker(initialCenter).addTo(map);
+    
+    // ドラッグハンドル用の専用ペインを作成
+    map.createPane('dragHandles');
+    map.getPane('dragHandles').style.zIndex = 650; // オーバーレイより上に表示
 
 
     // --- DOM要素の取得 ---
@@ -71,14 +75,19 @@ document.addEventListener('DOMContentLoaded', () => {
         ];
         
         corners.forEach((corner, index) => {
-            const handle = L.circleMarker(corner, {
-                radius: 6,
-                fillColor: '#ff0000',
-                color: '#ffffff',
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.8,
-                className: 'drag-handle-pulse'
+            
+            // カスタムアイコンを作成
+            const handleIcon = L.divIcon({
+                className: 'drag-handle-icon',
+                html: '<div style="width: 12px; height: 12px; background-color: #ff0000; border: 2px solid #ffffff; border-radius: 50%; cursor: pointer;"></div>',
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+            
+            const handle = L.marker(corner, {
+                icon: handleIcon,
+                draggable: false,
+                pane: 'dragHandles'
             }).addTo(map);
             
             // ツールチップを追加
@@ -89,14 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 className: 'drag-handle-tooltip'
             });
             
-            // マウスホバー時のスタイル変更
+            // マウスホバー時のカーソル変更
             handle.on('mouseover', () => {
-                handle.setStyle({
-                    radius: 8,
-                    fillColor: '#ff4444',
-                    weight: 3,
-                    fillOpacity: 1
-                });
                 // 角の位置に応じてカーソルを変更
                 const cursors = ['nw-resize', 'ne-resize', 'se-resize', 'sw-resize'];
                 map.getContainer().style.cursor = cursors[index];
@@ -104,12 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             handle.on('mouseout', () => {
                 if (!isDragging) {
-                    handle.setStyle({
-                        radius: 6,
-                        fillColor: '#ff0000',
-                        weight: 2,
-                        fillOpacity: 0.8
-                    });
                     map.getContainer().style.cursor = '';
                 }
             });

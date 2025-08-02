@@ -67,6 +67,22 @@
             padding: 4px 8px !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
         }
+        
+        /* ドラッグハンドルアイコンのスタイル */
+        .drag-handle-icon {
+            background: none !important;
+            border: none !important;
+        }
+        
+        .drag-handle-icon div {
+            transition: all 0.2s ease;
+        }
+        
+        .drag-handle-icon:hover div {
+            transform: scale(1.3);
+            background-color: #ff4444 !important;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
     </style>
 </head>
 <body>
