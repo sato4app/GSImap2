@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let dragHandles = []; // ドラッグハンドル（角）の配列
     let isDragging = false; // ドラッグ中かどうかのフラグ
     let dragCornerIndex = -1; // ドラッグ中の角のインデックス
+    let resizeTooltip = null; // リサイズ中の情報表示用ツールチップ
 
     // --- 初期マーカーの設置 ---
     centerMarker = L.marker(initialCenter).addTo(map);
@@ -123,47 +124,115 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * ドラッグ中に画像の境界を更新する
+     * ドラッグ中に画像の境界を更新する（縦横比保持）
      * @param {L.LatLng} newCornerPos 新しい角の位置
      * @param {number} cornerIndex 角のインデックス
      */
     function updateImageBounds(newCornerPos, cornerIndex) {
-        if (!imageOverlay) return;
+        if (!imageOverlay || !currentImage.src) return;
         
         const currentBounds = imageOverlay.getBounds();
-        let newBounds;
+        const center = currentBounds.getCenter();
         
-        switch (cornerIndex) {
-            case 0: // 左上
-                newBounds = L.latLngBounds(
-                    newCornerPos,
-                    currentBounds.getSouthEast()
-                );
-                break;
-            case 1: // 右上
-                newBounds = L.latLngBounds(
-                    L.latLng(newCornerPos.lat, currentBounds.getWest()),
-                    L.latLng(currentBounds.getSouth(), newCornerPos.lng)
-                );
-                break;
-            case 2: // 右下
-                newBounds = L.latLngBounds(
-                    currentBounds.getNorthWest(),
-                    newCornerPos
-                );
-                break;
-            case 3: // 左下
-                newBounds = L.latLngBounds(
-                    L.latLng(newCornerPos.lat, newCornerPos.lng),
-                    L.latLng(currentBounds.getNorth(), currentBounds.getEast())
-                );
-                break;
+        // 画像の元の縦横比を取得
+        const originalAspectRatio = currentImage.naturalHeight / currentImage.naturalWidth;
+        
+        // 現在の画像の幅と高さ（度単位）
+        const currentWidth = Math.abs(currentBounds.getEast() - currentBounds.getWest());
+        const currentHeight = Math.abs(currentBounds.getNorth() - currentBounds.getSouth());
+        
+        let newWidth, newHeight;
+        
+        // ドラッグされた角に基づいて新しいサイズを計算（すべて対角線ベースで統一）
+        const distance = Math.sqrt(
+            Math.pow(newCornerPos.lat - center.lat, 2) + 
+            Math.pow(newCornerPos.lng - center.lng, 2)
+        );
+        const currentDiagonal = Math.sqrt(
+            Math.pow(currentHeight / 2, 2) + 
+            Math.pow(currentWidth / 2, 2)
+        );
+        
+        // 最小距離制限を設定
+        const minDistance = 0.0001;
+        const clampedDistance = Math.max(distance, minDistance);
+        
+        const scaleFactor = clampedDistance / Math.max(currentDiagonal, minDistance);
+        newWidth = currentWidth * scaleFactor;
+        newHeight = currentHeight * scaleFactor;
+        
+        // 最小サイズ制限
+        const minSize = 0.001;
+        newWidth = Math.max(newWidth, minSize);
+        newHeight = Math.max(newHeight, minSize);
+        
+        // 新しい境界を作成
+        const newBounds = L.latLngBounds(
+            L.latLng(center.lat - newHeight / 2, center.lng - newWidth / 2),
+            L.latLng(center.lat + newHeight / 2, center.lng + newWidth / 2)
+        );
+        
+        // 画像を更新
+        imageOverlay.setBounds(newBounds);
+        createDragHandles(newBounds);
+        
+        // 表示倍率を更新
+        updateScaleFromBounds(newBounds);
+        
+        // リサイズ情報を表示
+        showResizeInfo(newBounds, center);
+    }
+    
+    /**
+     * リサイズ中に情報を表示する
+     * @param {L.LatLngBounds} bounds 現在の境界
+     * @param {L.LatLng} center 中心座標
+     */
+    function showResizeInfo(bounds, center) {
+        const scale = parseFloat(scaleInput.value) || 0;
+        
+        if (resizeTooltip) {
+            map.removeLayer(resizeTooltip);
         }
         
-        if (newBounds) {
-            imageOverlay.setBounds(newBounds);
-            createDragHandles(newBounds);
+        resizeTooltip = L.tooltip(center, {
+            content: `倍率: ${scale.toFixed(2)}`,
+            permanent: true,
+            direction: 'top',
+            className: 'resize-info-tooltip'
+        }).addTo(map);
+    }
+    
+    /**
+     * リサイズ情報表示を削除する
+     */
+    function hideResizeInfo() {
+        if (resizeTooltip) {
+            map.removeLayer(resizeTooltip);
+            resizeTooltip = null;
         }
+    }
+
+    /**
+     * 画像の境界から表示倍率を計算して更新する
+     * @param {L.LatLngBounds} bounds 画像の境界
+     */
+    function updateScaleFromBounds(bounds) {
+        if (!currentImage.src || !currentImage.complete) return;
+        
+        const mapSize = map.getSize();
+        const imageWidth = Math.abs(bounds.getEast() - bounds.getWest());
+        
+        // 境界の幅をピクセル単位に変換
+        const topLeft = map.latLngToLayerPoint(bounds.getNorthWest());
+        const topRight = map.latLngToLayerPoint(bounds.getNorthEast());
+        const displayWidthPx = Math.abs(topRight.x - topLeft.x);
+        
+        // 表示倍率を計算
+        const newScale = displayWidthPx / mapSize.x;
+        
+        // scaleInputを更新（小数点第2位まで）
+        scaleInput.value = Math.round(newScale * 100) / 100;
     }
 
     /**
@@ -391,6 +460,14 @@ document.addEventListener('DOMContentLoaded', () => {
             isDragging = false;
             dragCornerIndex = -1;
             map.dragging.enable();
+            
+            // ドラッグ終了時に表示倍率を最終更新
+            if (imageOverlay) {
+                updateScaleFromBounds(imageOverlay.getBounds());
+            }
+            
+            // リサイズ情報を非表示
+            hideResizeInfo();
         }
     });
 
@@ -400,6 +477,14 @@ document.addEventListener('DOMContentLoaded', () => {
             isDragging = false;
             dragCornerIndex = -1;
             map.dragging.enable();
+            
+            // ドラッグ終了時に表示倍率を最終更新
+            if (imageOverlay) {
+                updateScaleFromBounds(imageOverlay.getBounds());
+            }
+            
+            // リサイズ情報を非表示
+            hideResizeInfo();
         }
     });
 
