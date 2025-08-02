@@ -22,7 +22,20 @@ document.addEventListener('DOMContentLoaded', () => {
     let resizeTooltip = null; // リサイズ中の情報表示用ツールチップ
 
     // --- 初期マーカーの設置 ---
-    centerMarker = L.marker(initialCenter).addTo(map);
+    // 緑色のカスタムアイコンを作成
+    const greenIcon = L.icon({
+        iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 41" width="25" height="41">
+                <path fill="#22c55e" stroke="#16a34a" stroke-width="1" d="M12.5 0C5.6 0 0 5.6 0 12.5c0 12.5 12.5 28.5 12.5 28.5s12.5-16 12.5-28.5C25 5.6 19.4 0 12.5 0z"/>
+                <circle fill="#ffffff" cx="12.5" cy="12.5" r="5"/>
+            </svg>
+        `),
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34]
+    });
+    
+    centerMarker = L.marker(initialCenter, { icon: greenIcon }).addTo(map);
     
     // ドラッグハンドル用の専用ペインを作成
     map.createPane('dragHandles');
@@ -444,8 +457,8 @@ document.addEventListener('DOMContentLoaded', () => {
             map.removeLayer(centerMarker);
         }
 
-        // 新しいマーカーを追加して保持
-        centerMarker = L.marker(clickedLatLng).addTo(map);
+        // 新しいマーカーを追加して保持（緑色アイコン使用）
+        centerMarker = L.marker(clickedLatLng, { icon: greenIcon }).addTo(map);
         updateCoordInputs(clickedLatLng); // 座標表示を更新
 
         // 地図の中心をクリック位置に移動
