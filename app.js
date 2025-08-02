@@ -20,6 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDragging = false; // ドラッグ中かどうかのフラグ
     let dragCornerIndex = -1; // ドラッグ中の角のインデックス
     let resizeTooltip = null; // リサイズ中の情報表示用ツールチップ
+    let isMovingImage = false; // 画像移動中かどうかのフラグ
+    let moveStartPoint = null; // 移動開始時のマウス位置
 
     // --- 初期マーカーの設置 ---
     // 中心座標用の円形アイコンを作成（ドラッグハンドルと同じスタイル）
@@ -30,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         iconAnchor: [8, 8]
     });
     
-    centerMarker = L.marker(initialCenter, { icon: centerIcon }).addTo(map);
+    centerMarker = createCenterMarker(initialCenter);
     
     // ドラッグハンドル用の専用ペインを作成
     map.createPane('dragHandles');
@@ -56,6 +58,85 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadGeojsonBtn = document.getElementById('loadGeojsonBtn');
 
     // --- 関数定義 ---
+
+    /**
+     * 中心座標マーカーを作成する
+     * @param {L.LatLng} position マーカーの位置
+     * @returns {L.Marker} 作成されたマーカー
+     */
+    function createCenterMarker(position) {
+        const marker = L.marker(position, { 
+            icon: centerIcon,
+            draggable: false
+        }).addTo(map);
+        
+        // ツールチップを追加
+        marker.bindTooltip('ドラッグして画像移動', {
+            permanent: false,
+            direction: 'top',
+            offset: [0, -10],
+            className: 'center-marker-tooltip'
+        });
+        
+        // ホバー効果
+        marker.on('mouseover', () => {
+            if (!isMovingImage) {
+                map.getContainer().style.cursor = 'move';
+            }
+        });
+        
+        marker.on('mouseout', () => {
+            if (!isMovingImage) {
+                map.getContainer().style.cursor = '';
+                document.body.style.cursor = '';
+            }
+        });
+        
+        // ドラッグ開始
+        marker.on('mousedown', (e) => {
+            if (imageOverlay) {
+                isMovingImage = true;
+                moveStartPoint = e.latlng;
+                map.dragging.disable();
+                e.originalEvent.preventDefault();
+            }
+        });
+        
+        return marker;
+    }
+
+    /**
+     * 画像を移動する
+     * @param {L.LatLng} newPosition 新しい中心位置
+     */
+    function moveImageToPosition(newPosition) {
+        if (!imageOverlay || !moveStartPoint) return;
+        
+        const currentBounds = imageOverlay.getBounds();
+        const currentCenter = currentBounds.getCenter();
+        
+        // 移動距離を計算
+        const deltaLat = newPosition.lat - moveStartPoint.lat;
+        const deltaLng = newPosition.lng - moveStartPoint.lng;
+        
+        // 新しい境界を計算
+        const newBounds = L.latLngBounds(
+            L.latLng(currentBounds.getSouth() + deltaLat, currentBounds.getWest() + deltaLng),
+            L.latLng(currentBounds.getNorth() + deltaLat, currentBounds.getEast() + deltaLng)
+        );
+        
+        // 画像とハンドルを更新
+        imageOverlay.setBounds(newBounds);
+        createDragHandles(newBounds);
+        
+        // 中心マーカーを新しい位置に移動
+        const newCenter = newBounds.getCenter();
+        centerMarker.setLatLng(newCenter);
+        updateCoordInputs(newCenter);
+        
+        // 移動開始点を更新
+        moveStartPoint = newPosition;
+    }
 
     /**
      * ドラッグハンドルを削除する
@@ -452,8 +533,8 @@ document.addEventListener('DOMContentLoaded', () => {
             map.removeLayer(centerMarker);
         }
 
-        // 新しいマーカーを追加して保持（円形アイコン使用）
-        centerMarker = L.marker(clickedLatLng, { icon: centerIcon }).addTo(map);
+        // 新しいマーカーを追加して保持
+        centerMarker = createCenterMarker(clickedLatLng);
         updateCoordInputs(clickedLatLng); // 座標表示を更新
 
         // 地図の中心をクリック位置に移動
@@ -470,10 +551,12 @@ document.addEventListener('DOMContentLoaded', () => {
     map.on('mousemove', (e) => {
         if (isDragging && dragCornerIndex >= 0) {
             updateImageBounds(e.latlng, dragCornerIndex);
-        } else if (!isCenteringMode && !isDragging) {
+        } else if (isMovingImage) {
+            moveImageToPosition(e.latlng);
+        } else if (!isCenteringMode && !isDragging && !isMovingImage) {
             // ドラッグ中でも中心座標設定モードでもない場合、カーソルをリセット
             const currentCursor = map.getContainer().style.cursor;
-            if (currentCursor && currentCursor.includes('resize')) {
+            if (currentCursor && (currentCursor.includes('resize') || currentCursor === 'move')) {
                 map.getContainer().style.cursor = '';
                 document.body.style.cursor = '';
             }
@@ -497,6 +580,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // リサイズ情報を非表示
             hideResizeInfo();
+        } else if (isMovingImage) {
+            isMovingImage = false;
+            moveStartPoint = null;
+            map.dragging.enable();
+            
+            // カーソルを強制的にリセット
+            map.getContainer().style.cursor = '';
+            document.body.style.cursor = '';
         }
     });
 
@@ -518,6 +609,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // リサイズ情報を非表示
             hideResizeInfo();
+        } else if (isMovingImage) {
+            isMovingImage = false;
+            moveStartPoint = null;
+            map.dragging.enable();
+            
+            // カーソルを強制的にリセット
+            map.getContainer().style.cursor = '';
+            document.body.style.cursor = '';
         }
     });
 
@@ -528,6 +627,11 @@ document.addEventListener('DOMContentLoaded', () => {
             dragCornerIndex = -1;
             map.dragging.enable();
             hideResizeInfo();
+        }
+        if (isMovingImage) {
+            isMovingImage = false;
+            moveStartPoint = null;
+            map.dragging.enable();
         }
         // カーソルを強制リセット
         map.getContainer().style.cursor = '';
@@ -540,6 +644,11 @@ document.addEventListener('DOMContentLoaded', () => {
             dragCornerIndex = -1;
             map.dragging.enable();
             hideResizeInfo();
+        }
+        if (isMovingImage) {
+            isMovingImage = false;
+            moveStartPoint = null;
+            map.dragging.enable();
         }
         // カーソルを強制リセット
         map.getContainer().style.cursor = '';
