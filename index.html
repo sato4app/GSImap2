@@ -45,6 +45,28 @@
             pointer-events: none; /* クリックイベントを無効化 */
             color: #333;
         }
+        
+        /* ドラッグハンドルのアニメーション */
+        @keyframes dragHandlePulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+        
+        .drag-handle-pulse {
+            animation: dragHandlePulse 2s ease-in-out infinite;
+        }
+        
+        /* ドラッグハンドルのツールチップスタイル */
+        .drag-handle-tooltip {
+            background-color: rgba(0, 0, 0, 0.8) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 4px !important;
+            font-size: 12px !important;
+            padding: 4px 8px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+        }
     </style>
 </head>
 <body>

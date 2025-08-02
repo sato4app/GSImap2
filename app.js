@@ -77,8 +77,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 color: '#ffffff',
                 weight: 2,
                 opacity: 1,
-                fillOpacity: 0.8
+                fillOpacity: 0.8,
+                className: 'drag-handle-pulse'
             }).addTo(map);
+            
+            // ツールチップを追加
+            handle.bindTooltip('ドラッグしてサイズ変更', {
+                permanent: false,
+                direction: 'top',
+                offset: [0, -10],
+                className: 'drag-handle-tooltip'
+            });
+            
+            // マウスホバー時のスタイル変更
+            handle.on('mouseover', () => {
+                handle.setStyle({
+                    radius: 8,
+                    fillColor: '#ff4444',
+                    weight: 3,
+                    fillOpacity: 1
+                });
+                // 角の位置に応じてカーソルを変更
+                const cursors = ['nw-resize', 'ne-resize', 'se-resize', 'sw-resize'];
+                map.getContainer().style.cursor = cursors[index];
+            });
+            
+            handle.on('mouseout', () => {
+                if (!isDragging) {
+                    handle.setStyle({
+                        radius: 6,
+                        fillColor: '#ff0000',
+                        weight: 2,
+                        fillOpacity: 0.8
+                    });
+                    map.getContainer().style.cursor = '';
+                }
+            });
             
             handle.on('mousedown', (e) => {
                 isDragging = true;
