@@ -1,47 +1,84 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Geospatial Image Overlay Tool</title>
-    
-    <!-- Tailwind CSS for modern styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Leaflet.js CSS -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国土地理院 地形図ビューア</title>
+
+    <!-- ファビコンのリクエストを抑制して404エラーを防ぐ -->
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+
+    <!-- Leaflet.js の CSS と JS を読み込み -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
         crossorigin=""/>
-        
-    <!-- Leaflet.DistortableImage Plugin CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-distortableimage@0.21.6/dist/leaflet.distortableimage.css" />
-
-    <!-- Leaflet.js Core Library (loaded here to be available for the app) -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
-        
-    <!-- Leaflet.DistortableImage Plugin (loaded after Leaflet core) -->
-    <script src="https://unpkg.com/leaflet-distortableimage@0.21.6/dist/leaflet.distortableimage.js"></script>
 
-    <!-- Favicon to prevent 404 errors -->
-    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@^19.1.0",
-        "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
-        "react/": "https://esm.sh/react@^19.1.0/",
-        "react-leaflet": "https://esm.sh/react-leaflet@^5.0.0"
-      }
-    }
-    </script>
+    <!-- SheetJS ライブラリを読み込み -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- アプリケーション固有のスタイルシート -->
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        /* body全体の余白をなくし、地図を全画面表示 */
+        body {
+            padding: 0;
+            margin: 0;
+        }
+        html, body, #map {
+            height: 100%;
+            width: 100vw;
+        }
+        /* アクティブ状態のボタンのスタイル */
+        .image-overlay-controls .leaflet-control.active {
+            background-color: #ddd;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+        /* コントロール内のテキストボックスのスタイル調整 */
+        .image-overlay-controls .leaflet-control input[type="text"] {
+            width: 90px; /* 幅を調整 */
+            border: none;
+            background-color: transparent;
+            pointer-events: none; /* クリックイベントを無効化 */
+            color: #333;
+        }
+    </style>
 </head>
-<body class="antialiased">
-    <div id="root"></div>
+<body>
+    <div id="map"></div>
 
-    <!-- React App Entry Point -->
-    <script type="module" src="/index.tsx"></script>
+    <!-- 画像読み込みコントロール -->
+    <div class="image-overlay-controls">
+        <div id="scaleInputContainer" class="leaflet-bar leaflet-control">
+            <label for="scaleInput">表示倍率</label>
+            <input type="number" id="scaleInput" value="0.3" step="0.1" min="0.1">
+        </div>
+        <div id="opacityInputContainer" class="leaflet-bar leaflet-control">
+            <label for="opacityInput">透過度(%)</label>
+            <input type="number" id="opacityInput" value="50" min="0" max="100">
+        </div>
+        <input type="file" id="imageInput" accept="image/png" style="display: none;">
+        <button id="centerCoordBtn" title="中心座標を設定" class="leaflet-bar leaflet-control">中心座標</button>
+        <div id="latInputContainer" class="leaflet-bar leaflet-control">
+            <label for="latInput">北緯</label>
+            <input type="text" id="latInput" readonly>
+        </div>
+        <div id="lngInputContainer" class="leaflet-bar leaflet-control">
+            <label for="lngInput">東経</label>
+            <input type="text" id="lngInput" readonly>
+        </div>
+        <button id="loadImageBtn" title="画像を読み込む" class="leaflet-bar leaflet-control">画像読込</button>
+        <input type="file" id="gpsCsvInput" accept=".xlsx" style="display: none;">
+        <button id="loadGpsBtn" title="GPS値を読み込む" class="leaflet-bar leaflet-control">GPS値読込</button>
+        <input type="file" id="geojsonInput" accept=".geojson,.json" style="display: none;">
+        <button id="loadGeojsonBtn" title="GeoJSONファイルを読み込む" class="leaflet-bar leaflet-control">GeoJSON読込</button>
+    </div>
+
+    <!-- 分離したJavaScriptファイルを読み込む -->
+    <!-- defer属性により、HTMLの解析後にスクリプトが実行される -->
+    <script src="app.js" defer></script>
 </body>
 </html>
