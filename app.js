@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentImage = new Image(); // 表示中の画像のImageオブジェクトを保持
     let centerMarker = null; // 地図の中心を示すマーカー
     let isCenteringMode = false; // 中心座標設定モードのフラグ
+    let dragHandles = []; // ドラッグハンドル（角）の配列
+    let isDragging = false; // ドラッグ中かどうかのフラグ
+    let dragCornerIndex = -1; // ドラッグ中の角のインデックス
 
     // --- 初期マーカーの設置 ---
     centerMarker = L.marker(initialCenter).addTo(map);
@@ -40,6 +43,97 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadGeojsonBtn = document.getElementById('loadGeojsonBtn');
 
     // --- 関数定義 ---
+
+    /**
+     * ドラッグハンドルを削除する
+     */
+    function removeDragHandles() {
+        dragHandles.forEach(handle => {
+            if (map.hasLayer(handle)) {
+                map.removeLayer(handle);
+            }
+        });
+        dragHandles = [];
+    }
+
+    /**
+     * 画像の四隅にドラッグハンドルを追加する
+     * @param {L.LatLngBounds} bounds 画像の境界
+     */
+    function createDragHandles(bounds) {
+        removeDragHandles();
+        
+        const corners = [
+            bounds.getNorthWest(), // 左上
+            bounds.getNorthEast(), // 右上
+            bounds.getSouthEast(), // 右下
+            bounds.getSouthWest()  // 左下
+        ];
+        
+        corners.forEach((corner, index) => {
+            const handle = L.circleMarker(corner, {
+                radius: 6,
+                fillColor: '#ff0000',
+                color: '#ffffff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map);
+            
+            handle.on('mousedown', (e) => {
+                isDragging = true;
+                dragCornerIndex = index;
+                map.dragging.disable();
+                e.originalEvent.preventDefault();
+            });
+            
+            dragHandles.push(handle);
+        });
+    }
+
+    /**
+     * ドラッグ中に画像の境界を更新する
+     * @param {L.LatLng} newCornerPos 新しい角の位置
+     * @param {number} cornerIndex 角のインデックス
+     */
+    function updateImageBounds(newCornerPos, cornerIndex) {
+        if (!imageOverlay) return;
+        
+        const currentBounds = imageOverlay.getBounds();
+        let newBounds;
+        
+        switch (cornerIndex) {
+            case 0: // 左上
+                newBounds = L.latLngBounds(
+                    newCornerPos,
+                    currentBounds.getSouthEast()
+                );
+                break;
+            case 1: // 右上
+                newBounds = L.latLngBounds(
+                    L.latLng(newCornerPos.lat, currentBounds.getWest()),
+                    L.latLng(currentBounds.getSouth(), newCornerPos.lng)
+                );
+                break;
+            case 2: // 右下
+                newBounds = L.latLngBounds(
+                    currentBounds.getNorthWest(),
+                    newCornerPos
+                );
+                break;
+            case 3: // 左下
+                newBounds = L.latLngBounds(
+                    L.latLng(newCornerPos.lat, newCornerPos.lng),
+                    L.latLng(currentBounds.getNorth(), currentBounds.getEast())
+                );
+                break;
+        }
+        
+        if (newBounds) {
+            imageOverlay.setBounds(newBounds);
+            createDragHandles(newBounds);
+        }
+    }
 
     /**
      * 緯度・経度の入力フィールドを更新する
@@ -77,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 既存の画像を削除
         if (imageOverlay) {
             map.removeLayer(imageOverlay);
+            removeDragHandles();
         }
 
         const scale = parseFloat(scaleInput.value);
@@ -104,6 +199,9 @@ document.addEventListener('DOMContentLoaded', () => {
         imageOverlay = L.imageOverlay(currentImage.src, bounds, {
             opacity: displayOpacity // 初期透過度を設定
         }).addTo(map);
+        
+        // ドラッグハンドルを追加
+        createDragHandles(bounds);
     }
 
     /**
@@ -221,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 画像オーバーレイが存在すれば削除
         if (imageOverlay) {
             map.removeLayer(imageOverlay);
+            removeDragHandles();
             imageOverlay = null;
         }
     });
@@ -247,6 +346,30 @@ document.addEventListener('DOMContentLoaded', () => {
         isCenteringMode = false;
         centerCoordBtn.classList.remove('active');
         mapContainer.style.cursor = '';
+    });
+
+    // --- ドラッグイベントハンドラー ---
+    map.on('mousemove', (e) => {
+        if (isDragging && dragCornerIndex >= 0) {
+            updateImageBounds(e.latlng, dragCornerIndex);
+        }
+    });
+
+    map.on('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            dragCornerIndex = -1;
+            map.dragging.enable();
+        }
+    });
+
+    // ウィンドウ全体でのマウスアップイベント（地図外でマウスを離した場合）
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            dragCornerIndex = -1;
+            map.dragging.enable();
+        }
     });
 
     // --- GPS値読込イベント ---
