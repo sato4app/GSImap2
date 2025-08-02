@@ -109,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
             handle.on('mouseout', () => {
                 if (!isDragging) {
                     map.getContainer().style.cursor = '';
+                    document.body.style.cursor = '';
                 }
             });
             
@@ -414,7 +415,15 @@ document.addEventListener('DOMContentLoaded', () => {
     centerCoordBtn.addEventListener('click', () => {
         isCenteringMode = !isCenteringMode; // モードをトグル
         centerCoordBtn.classList.toggle('active', isCenteringMode);
-        mapContainer.style.cursor = isCenteringMode ? 'crosshair' : '';
+        
+        // カーソルを設定
+        if (isCenteringMode) {
+            mapContainer.style.cursor = 'crosshair';
+            document.body.style.cursor = 'crosshair';
+        } else {
+            mapContainer.style.cursor = '';
+            document.body.style.cursor = '';
+        }
 
         // 画像オーバーレイが存在すれば削除
         if (imageOverlay) {
@@ -446,12 +455,20 @@ document.addEventListener('DOMContentLoaded', () => {
         isCenteringMode = false;
         centerCoordBtn.classList.remove('active');
         mapContainer.style.cursor = '';
+        document.body.style.cursor = '';
     });
 
     // --- ドラッグイベントハンドラー ---
     map.on('mousemove', (e) => {
         if (isDragging && dragCornerIndex >= 0) {
             updateImageBounds(e.latlng, dragCornerIndex);
+        } else if (!isCenteringMode && !isDragging) {
+            // ドラッグ中でも中心座標設定モードでもない場合、カーソルをリセット
+            const currentCursor = map.getContainer().style.cursor;
+            if (currentCursor && currentCursor.includes('resize')) {
+                map.getContainer().style.cursor = '';
+                document.body.style.cursor = '';
+            }
         }
     });
 
@@ -460,6 +477,10 @@ document.addEventListener('DOMContentLoaded', () => {
             isDragging = false;
             dragCornerIndex = -1;
             map.dragging.enable();
+            
+            // カーソルを強制的にリセット
+            map.getContainer().style.cursor = '';
+            document.body.style.cursor = '';
             
             // ドラッグ終了時に表示倍率を最終更新
             if (imageOverlay) {
@@ -478,6 +499,10 @@ document.addEventListener('DOMContentLoaded', () => {
             dragCornerIndex = -1;
             map.dragging.enable();
             
+            // カーソルを強制的にリセット
+            map.getContainer().style.cursor = '';
+            document.body.style.cursor = '';
+            
             // ドラッグ終了時に表示倍率を最終更新
             if (imageOverlay) {
                 updateScaleFromBounds(imageOverlay.getBounds());
@@ -486,6 +511,31 @@ document.addEventListener('DOMContentLoaded', () => {
             // リサイズ情報を非表示
             hideResizeInfo();
         }
+    });
+
+    // 追加の安全対策：マウスが画面外に出た時やウィンドウフォーカスが外れた時
+    document.addEventListener('mouseleave', () => {
+        if (isDragging) {
+            isDragging = false;
+            dragCornerIndex = -1;
+            map.dragging.enable();
+            hideResizeInfo();
+        }
+        // カーソルを強制リセット
+        map.getContainer().style.cursor = '';
+        document.body.style.cursor = '';
+    });
+
+    window.addEventListener('blur', () => {
+        if (isDragging) {
+            isDragging = false;
+            dragCornerIndex = -1;
+            map.dragging.enable();
+            hideResizeInfo();
+        }
+        // カーソルを強制リセット
+        map.getContainer().style.cursor = '';
+        document.body.style.cursor = '';
     });
 
     // --- GPS値読込イベント ---
