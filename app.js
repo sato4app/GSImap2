@@ -38,6 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
     map.createPane('dragHandles');
     map.getPane('dragHandles').style.zIndex = 650; // オーバーレイより上に表示
 
+    // 中心マーカー用の専用ペインを作成
+    map.createPane('centerMarker');
+    map.getPane('centerMarker').style.zIndex = 700; // 他のマーカーより上に表示
+
 
     // --- DOM要素の取得 ---
     const imageInput = document.getElementById('imageInput');
@@ -67,7 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function createCenterMarker(position) {
         const marker = L.marker(position, { 
             icon: centerIcon,
-            draggable: false
+            draggable: false,
+            pane: 'centerMarker'
         }).addTo(map);
         
         // ツールチップを追加
