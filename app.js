@@ -32,8 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
         iconAnchor: [8, 8]
     });
     
-    centerMarker = createCenterMarker(initialCenter);
-    
     // ドラッグハンドル用の専用ペインを作成
     map.createPane('dragHandles');
     map.getPane('dragHandles').style.zIndex = 650; // オーバーレイより上に表示
@@ -41,6 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 中心マーカー用の専用ペインを作成
     map.createPane('centerMarker');
     map.getPane('centerMarker').style.zIndex = 700; // 他のマーカーより上に表示
+    
+    centerMarker = createCenterMarker(initialCenter);
 
 
     // --- DOM要素の取得 ---
