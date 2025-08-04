@@ -374,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const displayOpacity = getDisplayOpacity();
         const mapSize = map.getSize();
-        const mapCenterLatLng = map.getCenter();
+        const mapCenterLatLng = centerMarker ? centerMarker.getLatLng() : map.getCenter();
 
         // 画像の自然なサイズを使用し、ゼロ除算を避ける
         if (currentImage.naturalWidth === 0 || currentImage.naturalHeight === 0) {
